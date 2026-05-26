@@ -2,7 +2,7 @@
   "name": "serial-mqtt-debugger",
   "displayName": "串口+MQTT调试器",
   "description": "集成串口调试与MQTT客户端的一体化调试工具",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "publisher": "debugger",
   "engines": {
     "vscode": "^1.80.0"

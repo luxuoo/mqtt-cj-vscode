@@ -1,0 +1,156 @@
+{
+  "name": "serial-mqtt-debugger",
+  "displayName": "串口+MQTT调试器",
+  "description": "集成串口调试与MQTT客户端的一体化调试工具",
+  "version": "1.0.0",
+  "publisher": "debugger",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Debuggers",
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "serial-mqtt-debugger",
+          "title": "串口+MQTT调试器",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "serial-mqtt-debugger": [
+        {
+          "type": "webview",
+          "id": "serialMqtt.sidebar",
+          "name": "串口MQTT调试器"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "serialMqtt.openPanel",
+        "title": "打开调试面板",
+        "category": "串口MQTT"
+      }
+    ],
+    "configuration": {
+      "title": "串口+MQTT调试器",
+      "properties": {
+        "serialMqtt.defaultBaudRate": {
+          "type": "number",
+          "default": 115200,
+          "description": "默认波特率"
+        },
+        "serialMqtt.defaultDataBits": {
+          "type": "number",
+          "default": 8,
+          "enum": [5, 6, 7, 8],
+          "description": "默认数据位"
+        },
+        "serialMqtt.defaultStopBits": {
+          "type": "number",
+          "default": 1,
+          "enum": [1, 2],
+          "description": "默认停止位"
+        },
+        "serialMqtt.defaultParity": {
+          "type": "string",
+          "default": "none",
+          "enum": ["none", "odd", "even"],
+          "description": "默认校验位"
+        },
+        "serialMqtt.defaultEncoding": {
+          "type": "string",
+          "default": "utf-8",
+          "enum": ["utf-8", "ascii", "gbk", "gb2312"],
+          "description": "默认编码"
+        },
+        "serialMqtt.defaultLineEnding": {
+          "type": "string",
+          "default": "\\r\\n",
+          "enum": ["\\r\\n", "\\n", "\\r", "none"],
+          "description": "默认行尾符"
+        },
+        "serialMqtt.defaultMqttBroker": {
+          "type": "string",
+          "default": "broker.emqx.io",
+          "description": "默认 MQTT Broker 地址"
+        },
+        "serialMqtt.defaultMqttPort": {
+          "type": "number",
+          "default": 1883,
+          "description": "默认 MQTT 端口"
+        },
+        "serialMqtt.defaultMqttProtocol": {
+          "type": "string",
+          "default": "mqtt",
+          "enum": ["mqtt", "mqtts", "ws", "wss"],
+          "description": "默认 MQTT 协议"
+        },
+        "serialMqtt.autoReconnect": {
+          "type": "boolean",
+          "default": true,
+          "description": "MQTT断线自动重连"
+        },
+        "serialMqtt.reconnectInterval": {
+          "type": "number",
+          "default": 5000,
+          "description": "MQTT重连间隔(ms)"
+        },
+        "serialMqtt.keepAlive": {
+          "type": "number",
+          "default": 60,
+          "description": "MQTT 保活间隔(秒)"
+        },
+        "serialMqtt.maxMessageHistory": {
+          "type": "number",
+          "default": 1000,
+          "description": "最大消息历史条数"
+        },
+        "serialMqtt.autoScroll": {
+          "type": "boolean",
+          "default": true,
+          "description": "接收区自动滚动"
+        },
+        "serialMqtt.showTimestamp": {
+          "type": "boolean",
+          "default": true,
+          "description": "显示时间戳"
+        },
+        "serialMqtt.bridgeDefaultSerialToMqttTopic": {
+          "type": "string",
+          "default": "serial/rx",
+          "description": "桥接默认 串口→MQTT 主题"
+        },
+        "serialMqtt.bridgeDefaultMqttToSerialTopic": {
+          "type": "string",
+          "default": "serial/tx",
+          "description": "桥接默认 MQTT→串口 主题"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --external:serialport --external:@serialport/* --format=cjs --platform=node --minify",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "dev": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --external:serialport --external:@serialport/* --format=cjs --platform=node --sourcemap --watch"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.80.0",
+    "esbuild": "^0.20.0",
+    "typescript": "^5.3.0"
+  },
+  "dependencies": {
+    "mqtt": "^5.3.0",
+    "serialport": "^12.0.0"
+  }
+}

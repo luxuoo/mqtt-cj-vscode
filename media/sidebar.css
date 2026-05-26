@@ -1,0 +1,261 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: var(--vscode-font-family);
+    font-size: 12px;
+    color: var(--vscode-foreground);
+    background: var(--vscode-sideBar-background);
+    padding: 4px 0;
+}
+
+/* ===== 折叠段 ===== */
+.section { border-bottom: 1px solid var(--vscode-panel-border); }
+
+.section-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 12px;
+    user-select: none;
+}
+
+.section-title:hover { background: var(--vscode-list-hoverBackground); }
+
+.section-title .arrow {
+    font-size: 10px;
+    transition: transform 0.15s;
+    width: 10px;
+    text-align: center;
+}
+
+.section-title.open .arrow { transform: rotate(90deg); }
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-left: auto;
+    background: var(--vscode-testing-iconFailed);
+}
+
+.status-dot.connected { background: var(--vscode-testing-iconPassed); }
+
+.section-body {
+    padding: 4px 12px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.section-body.collapsed { display: none; }
+
+/* ===== 字段 ===== */
+.field { display: flex; flex-direction: column; gap: 2px; }
+.field label { font-size: 11px; opacity: 0.7; }
+
+.field-row { display: flex; gap: 4px; align-items: flex-end; }
+.field-row select, .field-row input { flex: 1; }
+
+.field-row-2 { display: flex; gap: 8px; align-items: center; }
+.field-row-2 .field { flex: 1; }
+
+.field-row-3 { display: flex; gap: 4px; }
+.field-row-3 .field { flex: 1; }
+
+/* ===== 输入框 ===== */
+input, select, textarea {
+    background: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
+    border: 1px solid var(--vscode-input-border);
+    padding: 4px 6px;
+    border-radius: 3px;
+    font-size: 12px;
+    font-family: var(--vscode-font-family);
+    width: 100%;
+}
+
+input:focus, select:focus, textarea:focus {
+    outline: 1px solid var(--vscode-focusBorder);
+    border-color: var(--vscode-focusBorder);
+}
+
+textarea { resize: vertical; min-height: 36px; font-family: var(--vscode-editor-font-family); }
+
+select { cursor: pointer; }
+
+/* ===== 按钮 ===== */
+.btn {
+    background: var(--vscode-button-secondaryBackground);
+    color: var(--vscode-button-secondaryForeground);
+    border: none;
+    padding: 5px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 12px;
+    font-family: var(--vscode-font-family);
+}
+
+.btn:hover { background: var(--vscode-button-secondaryHoverBackground); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.btn.primary {
+    background: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+}
+
+.btn.primary:hover { background: var(--vscode-button-hoverBackground); }
+
+.btn.danger { background: #c75050; color: #fff; }
+.btn.danger:hover { background: #a83e3e; }
+
+.btn.full { width: 100%; }
+
+.icon-btn {
+    background: transparent;
+    border: 1px solid var(--vscode-input-border);
+    color: var(--vscode-foreground);
+    padding: 3px 6px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 14px;
+    min-width: 28px;
+}
+
+.icon-btn:hover { background: var(--vscode-list-hoverBackground); }
+
+/* ===== 复选框/单选 ===== */
+.cb {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.cb input { width: auto; margin: 0; }
+
+/* ===== 子标题 ===== */
+.sub-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--vscode-textLink-foreground);
+    padding-top: 6px;
+    border-top: 1px solid var(--vscode-panel-border);
+    margin-top: 2px;
+}
+
+/* ===== 标签 ===== */
+.tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    min-height: 20px;
+}
+
+.tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    background: var(--vscode-badge-background);
+    color: var(--vscode-badge-foreground);
+    padding: 1px 6px;
+    border-radius: 10px;
+    font-size: 11px;
+}
+
+.tag .rm {
+    cursor: pointer;
+    opacity: 0.6;
+    font-size: 12px;
+    line-height: 1;
+}
+
+.tag .rm:hover { opacity: 1; }
+
+/* ===== 统计 ===== */
+.stats {
+    font-size: 10px;
+    opacity: 0.6;
+    font-family: var(--vscode-editor-font-family);
+    padding: 2px 0;
+}
+
+/* ===== 折叠段 ===== */
+.sub-section { margin-top: 4px; }
+.sub-section summary {
+    cursor: pointer;
+    font-size: 11px;
+    opacity: 0.7;
+    padding: 2px 0;
+}
+.sub-section .field, .sub-section .field-row-2 { margin-top: 4px; }
+
+/* ===== 配置方案列表 ===== */
+.profile-list { display: flex; flex-direction: column; gap: 2px; }
+
+.profile-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 3px 6px;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+.profile-item:hover { background: var(--vscode-list-hoverBackground); }
+
+.profile-item .name { font-size: 12px; }
+.profile-item .date { font-size: 10px; opacity: 0.5; }
+.profile-item .actions { display: flex; gap: 2px; }
+
+.profile-item .act-btn {
+    background: transparent;
+    border: none;
+    color: var(--vscode-foreground);
+    cursor: pointer;
+    padding: 2px 4px;
+    font-size: 12px;
+    opacity: 0.6;
+    border-radius: 2px;
+}
+
+.profile-item .act-btn:hover { opacity: 1; background: var(--vscode-list-hoverBackground); }
+
+/* ===== 快捷指令 ===== */
+.cmd-list { display: flex; flex-direction: column; gap: 2px; }
+
+.cmd-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 3px 6px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-family: var(--vscode-editor-font-family);
+    font-size: 11px;
+}
+
+.cmd-item:hover { background: var(--vscode-list-hoverBackground); }
+.cmd-item .cmd-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.cmd-item .cmd-rm {
+    background: transparent;
+    border: none;
+    color: var(--vscode-foreground);
+    cursor: pointer;
+    padding: 0 3px;
+    font-size: 12px;
+    opacity: 0.5;
+}
+
+.cmd-item .cmd-rm:hover { opacity: 1; }
+
+/* ===== 打开面板按钮 ===== */
+.open-panel {
+    margin: 8px 12px;
+    font-weight: 600;
+}

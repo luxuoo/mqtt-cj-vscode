@@ -300,10 +300,40 @@
 
     // ===== 配置方案 =====
     $('saveProfile').addEventListener('click', () => {
-        const name = prompt('输入配置方案名称:');
-        if (name) {
-            post({ type: 'profile.save', name });
-        }
+        const name = $('profileNameInput').value.trim();
+        if (!name) return;
+        const flow = $('flowControl').value;
+        post({
+            type: 'profile.save', name,
+            data: {
+                serial: {
+                    port: $('serialPort').value, baudRate: parseInt($('baudRate').value),
+                    dataBits: parseInt($('dataBits').value), stopBits: parseFloat($('stopBits').value),
+                    parity: $('parity').value, rtscts: flow === 'rtscts',
+                    xon: flow === 'xonxoff', xoff: flow === 'xonxoff',
+                    dtr: $('dtrCtrl').checked, rts: $('rtsCtrl').checked
+                },
+                mqtt: {
+                    protocol: $('mqttProtocol').value, broker: $('mqttBroker').value,
+                    port: parseInt($('mqttPort').value), clientId: $('mqttClientId').value,
+                    username: $('mqttUsername').value || undefined, password: $('mqttPassword').value || undefined,
+                    cleanSession: $('mqttCleanSession').checked, keepAlive: parseInt($('mqttKeepAlive').value),
+                    reconnect: $('mqttReconnect').checked, reconnectInterval: 5000,
+                    willTopic: $('willTopic').value || undefined, willPayload: $('willPayload').value || undefined,
+                    willQos: parseInt($('willQos').value), willRetain: $('willRetain').checked
+                },
+                bridge: {
+                    serialToMqtt: $('bridgeS2M').checked, mqttToSerial: $('bridgeM2S').checked,
+                    serialToMqttTopic: $('bridgeS2MTopic').value, mqttToSerialTopic: $('bridgeM2STopic').value,
+                    transform: $('bridgeTransform').value
+                }
+            }
+        });
+        $('profileNameInput').value = '';
+    });
+
+    $('profileNameInput').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') $('saveProfile').click();
     });
 
     $('loadProfile').addEventListener('click', () => {
@@ -315,7 +345,7 @@
 
     $('deleteProfile').addEventListener('click', () => {
         const name = $('profileSelect').value;
-        if (name && confirm(`确认删除方案 "${name}"?`)) {
+        if (name) {
             post({ type: 'profile.delete', name });
         }
     });

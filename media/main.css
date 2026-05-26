@@ -74,6 +74,30 @@ body {
     background: var(--vscode-button-hoverBackground);
 }
 
+.profile-bar input {
+    background: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
+    border: 1px solid var(--vscode-input-border);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 12px;
+}
+
+.btn-small {
+    background: var(--vscode-button-secondaryBackground);
+    color: var(--vscode-button-secondaryForeground);
+    border: 1px solid var(--vscode-input-border);
+    padding: 2px 8px;
+    cursor: pointer;
+    border-radius: 3px;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.btn-small:hover {
+    background: var(--vscode-button-secondaryHoverBackground);
+}
+
 /* ===== 标签内容 ===== */
 .tab-content {
     display: none;

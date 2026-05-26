@@ -144,7 +144,7 @@ export class MainPanel {
 
                 // 配置方案
                 case 'profile.save':
-                    this.handleSaveProfile(msg.name);
+                    this.handleSaveProfile(msg.name, msg.data);
                     break;
                 case 'profile.load':
                     this.handleLoadProfile(msg.name);
@@ -318,12 +318,12 @@ export class MainPanel {
 
     // === 配置方案 ===
 
-    private handleSaveProfile(name: string): void {
+    private handleSaveProfile(name: string, data?: any): void {
         const profile: Profile = {
             name,
-            serial: this.serialManager.config || this.profileManager.getDefaultSerialConfig(),
-            mqtt: this.mqttManager.config || this.profileManager.getDefaultMqttConfig(),
-            bridge: this.bridgeManager.config || this.profileManager.getDefaultBridgeConfig(),
+            serial: data?.serial || this.serialManager.config || this.profileManager.getDefaultSerialConfig(),
+            mqtt: data?.mqtt || this.mqttManager.config || this.profileManager.getDefaultMqttConfig(),
+            bridge: data?.bridge || this.bridgeManager.config || this.profileManager.getDefaultBridgeConfig(),
             createdAt: ''
         };
         this.profileManager.saveProfile(profile);

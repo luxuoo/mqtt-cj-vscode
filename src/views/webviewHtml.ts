@@ -22,10 +22,11 @@ export function getWebviewContent(webview: vscode.Webview, extensionUri: vscode.
         <button class="tab" data-tab="bridge">桥接模式</button>
         <div class="tab-spacer"></div>
         <div class="profile-bar">
-            <select id="profileSelect"><option value="">-- 配置方案 --</option></select>
-            <button id="loadProfile" title="加载方案">📂</button>
-            <button id="saveProfile" title="保存方案">💾</button>
-            <button id="deleteProfile" title="删除方案">🗑️</button>
+            <input id="profileNameInput" placeholder="方案名称" style="width:100px" />
+            <button id="saveProfile" title="保存方案" class="btn-small">保存</button>
+            <select id="profileSelect"><option value="">-- 已保存方案 --</option></select>
+            <button id="loadProfile" title="加载方案" class="btn-small">加载</button>
+            <button id="deleteProfile" title="删除方案" class="btn-small">删除</button>
         </div>
     </div>
 

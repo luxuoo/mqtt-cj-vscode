@@ -131,7 +131,48 @@
     $('profileSave').addEventListener('click', () => {
         const name = $('profileName').value.trim();
         if (!name) return;
-        post({ type: 'profile.save', name });
+        const flow = $('sFlow').value;
+        post({
+            type: 'profile.save',
+            name,
+            data: {
+                serial: {
+                    port: $('sPort').value,
+                    baudRate: parseInt($('sBaud').value),
+                    dataBits: parseInt($('sDataBits').value),
+                    stopBits: parseFloat($('sStopBits').value),
+                    parity: $('sParity').value,
+                    rtscts: flow === 'rtscts',
+                    xon: flow === 'xonxoff',
+                    xoff: flow === 'xonxoff',
+                    dtr: $('sDtr').checked,
+                    rts: $('sRts').checked
+                },
+                mqtt: {
+                    protocol: $('mProtocol').value,
+                    broker: $('mBroker').value,
+                    port: parseInt($('mPort').value),
+                    clientId: $('mClientId').value,
+                    username: $('mUsername').value || undefined,
+                    password: $('mPassword').value || undefined,
+                    cleanSession: $('mClean').checked,
+                    keepAlive: parseInt($('mKeepAlive').value),
+                    reconnect: $('mReconnect').checked,
+                    reconnectInterval: 5000,
+                    willTopic: $('wTopic').value || undefined,
+                    willPayload: $('wPayload').value || undefined,
+                    willQos: parseInt($('wQos').value),
+                    willRetain: $('wRetain').checked
+                },
+                bridge: {
+                    serialToMqtt: $('bS2M').checked,
+                    mqttToSerial: $('bM2S').checked,
+                    serialToMqttTopic: $('bS2MTopic').value,
+                    mqttToSerialTopic: $('bM2STopic').value,
+                    transform: $('bTransform').value
+                }
+            }
+        });
         $('profileName').value = '';
     });
     $('profileName').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('profileSave').click(); });

@@ -198,11 +198,12 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 break;
 
             case 'profile.save': {
+                const d = msg.data || {};
                 const profile: Profile = {
                     name: msg.name,
-                    serial: this.serialManager.config || this.profileManager.getDefaultSerialConfig(),
-                    mqtt: this.mqttManager.config || this.profileManager.getDefaultMqttConfig(),
-                    bridge: this.bridgeManager.config || this.profileManager.getDefaultBridgeConfig(),
+                    serial: d.serial || this.serialManager.config || this.profileManager.getDefaultSerialConfig(),
+                    mqtt: d.mqtt || this.mqttManager.config || this.profileManager.getDefaultMqttConfig(),
+                    bridge: d.bridge || this.bridgeManager.config || this.profileManager.getDefaultBridgeConfig(),
                     createdAt: ''
                 };
                 this.profileManager.saveProfile(profile);

@@ -46,21 +46,50 @@
     // ===== 串口模块 =====
     const serialLog = $('serialLog');
     const autoScroll = $('autoScroll');
+    let serialState = 'disconnected'; // disconnected, connecting, connected
 
-    // 刷新端口
+    function setSerialState(state) {
+        serialState = state;
+        const btn = $('serialConnect');
+        switch (state) {
+            case 'connecting':
+                btn.textContent = '连接中...';
+                btn.className = 'btn-primary';
+                btn.disabled = true;
+                break;
+            case 'connected':
+                btn.textContent = '断开';
+                btn.className = 'btn-danger';
+                btn.disabled = false;
+                break;
+            case 'disconnected':
+            default:
+                btn.textContent = '连接';
+                btn.className = 'btn-primary';
+                btn.disabled = false;
+                break;
+        }
+    }
+
+    // 刷新端口（保持当前选中）
     $('refreshPorts').addEventListener('click', () => {
         post({ type: 'serial.listPorts' });
     });
 
     // 连接/断开
     $('serialConnect').addEventListener('click', () => {
-        const btn = $('serialConnect');
-        if (btn.textContent === '连接') {
+        if (serialState === 'connected') {
+            setSerialState('disconnected');
+            post({ type: 'serial.disconnect' });
+        } else if (serialState === 'disconnected') {
+            const port = $('serialPort').value;
+            if (!port) return;
+            setSerialState('connecting');
             const flow = $('flowControl').value;
             post({
                 type: 'serial.connect',
                 config: {
-                    port: $('serialPort').value,
+                    port: port,
                     baudRate: parseInt($('baudRate').value),
                     dataBits: parseInt($('dataBits').value),
                     stopBits: parseFloat($('stopBits').value),
@@ -72,8 +101,6 @@
                     rts: $('rtsCtrl').checked
                 }
             });
-        } else {
-            post({ type: 'serial.disconnect' });
         }
     });
 
@@ -435,10 +462,12 @@
             // 串口
             case 'serial.ports': {
                 const select = $('serialPort');
+                const prevPort = select.value;
                 select.innerHTML = '';
                 if (msg.ports.length === 0) {
                     select.innerHTML = '<option value="">未发现串口</option>';
                 } else {
+                    let found = false;
                     msg.ports.forEach(p => {
                         const opt = document.createElement('option');
                         opt.value = p.path;
@@ -446,15 +475,22 @@
                             ? `${p.path} - ${p.manufacturer}`
                             : p.path;
                         opt.textContent = label;
+                        if (p.path === prevPort) {
+                            opt.selected = true;
+                            found = true;
+                        }
                         select.appendChild(opt);
                     });
+                    // 如果之前选中的端口不在新列表中，保持选择不变（但可能已断开）
+                    if (!found && prevPort) {
+                        // 之前选中的端口消失了，不用管
+                    }
                 }
                 break;
             }
 
             case 'serial.connected': {
-                $('serialConnect').textContent = '断开';
-                $('serialConnect').className = 'btn-danger';
+                setSerialState('connected');
                 $('serialStatus').textContent = '串口: ' + msg.port;
                 $('serialStatus').className = 'status connected';
                 appendLog(serialLog, `<span class="timestamp">[${new Date().toLocaleTimeString()}]</span> <span class="dir-rx">✓ 已连接 ${escapeHtml(msg.port)}</span>`);
@@ -462,11 +498,19 @@
             }
 
             case 'serial.disconnected': {
-                $('serialConnect').textContent = '连接';
-                $('serialConnect').className = 'btn-primary';
+                setSerialState('disconnected');
                 $('serialStatus').textContent = '串口: 未连接';
                 $('serialStatus').className = 'status disconnected';
                 appendLog(serialLog, `<span class="timestamp">[${new Date().toLocaleTimeString()}]</span> <span class="error">✗ 已断开</span>`);
+                break;
+            }
+
+            case 'serial.error': {
+                // 连接失败时恢复按钮状态
+                if (serialState === 'connecting') {
+                    setSerialState('disconnected');
+                }
+                appendLog(serialLog, `<span class="timestamp">[${new Date().toLocaleTimeString()}]</span> <span class="error">✗ ${escapeHtml(msg.message)}</span>`);
                 break;
             }
 
@@ -485,11 +529,6 @@
 
             case 'serial.stats': {
                 $('serialStats').textContent = `RX: ${formatBytes(msg.rxBytes)} | TX: ${formatBytes(msg.txBytes)} | ERR: ${msg.errorFrames || 0}`;
-                break;
-            }
-
-            case 'serial.error': {
-                appendLog(serialLog, `<span class="timestamp">[${new Date().toLocaleTimeString()}]</span> <span class="error">✗ ${escapeHtml(msg.message)}</span>`);
                 break;
             }
 

@@ -31,23 +31,51 @@
     var sDtr = $('sDtr'), sRts = $('sRts'), sInput = $('sInput');
     var sLineEnding = $('sLineEnding'), serialConnect = $('serialConnect');
     var serialStats = $('serialStats'), serialDot = $('serialDot');
+    var serialState = 'disconnected';
+
+    function setSerialState(state) {
+        serialState = state;
+        if (!serialConnect) return;
+        switch (state) {
+            case 'connecting':
+                serialConnect.textContent = '连接中...';
+                serialConnect.className = 'btn primary full';
+                serialConnect.disabled = true;
+                break;
+            case 'connected':
+                serialConnect.textContent = '断开';
+                serialConnect.className = 'btn danger full';
+                serialConnect.disabled = false;
+                break;
+            case 'disconnected':
+            default:
+                serialConnect.textContent = '连接';
+                serialConnect.className = 'btn primary full';
+                serialConnect.disabled = false;
+                break;
+        }
+    }
 
     $('refreshPorts').addEventListener('click', function() { post({ type: 'serial.listPorts' }); });
 
     if (serialConnect) serialConnect.addEventListener('click', function() {
-        if (serialConnect.textContent === '连接') {
+        if (serialState === 'connected') {
+            setSerialState('disconnected');
+            post({ type: 'serial.disconnect' });
+        } else if (serialState === 'disconnected') {
+            var port = val('sPort');
+            if (!port) return;
+            setSerialState('connecting');
             var flow = val('sFlow');
             post({
                 type: 'serial.connect',
                 config: {
-                    port: val('sPort'), baudRate: num('sBaud'), dataBits: num('sDataBits'),
+                    port: port, baudRate: num('sBaud'), dataBits: num('sDataBits'),
                     stopBits: parseFloat(val('sStopBits')) || 1, parity: val('sParity'),
                     rtscts: flow === 'rtscts', xon: flow === 'xonxoff', xoff: flow === 'xonxoff',
                     dtr: checked('sDtr'), rts: checked('sRts')
                 }
             });
-        } else {
-            post({ type: 'serial.disconnect' });
         }
     });
 
@@ -243,28 +271,31 @@
                 case 'serial.ports': {
                     var sel = $('sPort');
                     if (!sel) break;
+                    var prevPort = sel.value;
                     sel.innerHTML = '';
                     if (!msg.ports || !msg.ports.length) { sel.innerHTML = '<option>未发现串口</option>'; return; }
                     msg.ports.forEach(function(p) {
                         var opt = document.createElement('option');
                         opt.value = p.path;
                         opt.textContent = p.manufacturer ? p.path + ' - ' + p.manufacturer : p.path;
+                        if (p.path === prevPort) opt.selected = true;
                         sel.appendChild(opt);
                     });
                     break;
                 }
                 case 'serial.connected':
-                    if (serialConnect) { serialConnect.textContent = '断开'; serialConnect.classList.replace('primary', 'danger'); }
+                    setSerialState('connected');
                     if (serialDot) serialDot.classList.add('connected');
                     break;
                 case 'serial.disconnected':
-                    if (serialConnect) { serialConnect.textContent = '连接'; serialConnect.classList.replace('danger', 'primary'); }
+                    setSerialState('disconnected');
                     if (serialDot) serialDot.classList.remove('connected');
                     break;
                 case 'serial.stats':
                     if (serialStats) serialStats.textContent = 'RX: ' + fmtBytes(msg.rxBytes) + ' | TX: ' + fmtBytes(msg.txBytes);
                     break;
                 case 'serial.error':
+                    if (serialState === 'connecting') setSerialState('disconnected');
                     console.warn('Serial:', msg.message);
                     break;
 

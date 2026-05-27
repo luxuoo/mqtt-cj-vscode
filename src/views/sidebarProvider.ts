@@ -15,6 +15,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     private profileManager: ProfileManager;
     private bridgeManager: BridgeManager;
     private serialLog: string[] = [];
+    private _disposed: boolean = false;
 
     constructor(
         private readonly extensionUri: vscode.Uri,
@@ -270,7 +271,12 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     }
 
     private post(msg: any): void {
-        this.view?.webview.postMessage(msg);
+        if (this._disposed || !this.view) return;
+        try {
+            this.view.webview.postMessage(msg);
+        } catch {
+            // webview 已销毁，忽略
+        }
     }
 
     public refresh(): void {
@@ -488,6 +494,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     }
 
     dispose(): void {
-        // BridgeManager 由 extension.ts 统一管理，这里不 dispose
+        this._disposed = true;
+        this.view = undefined;
     }
 }

@@ -21,6 +21,7 @@ export class MainPanel {
     private profileManager: ProfileManager;
     private mqttStore: MqttStore;
     private serialLog: string[] = [];
+    private _disposed: boolean = false;
 
     private constructor(
         panel: vscode.WebviewPanel,
@@ -47,6 +48,7 @@ export class MainPanel {
 
         // 发送上次保存的配置和当前状态
         setTimeout(() => {
+            if (this._disposed) return;
             const lastConfig = this.profileManager.getLastConfig();
             if (lastConfig) {
                 this.postToWebview({ type: 'config.lastConfig', config: lastConfig });
@@ -418,13 +420,19 @@ export class MainPanel {
     // === 通信 ===
 
     private postToWebview(message: any): void {
-        this.panel.webview.postMessage(message);
+        if (this._disposed) return;
+        try {
+            this.panel.webview.postMessage(message);
+        } catch {
+            // webview 已销毁，忽略
+        }
     }
 
     dispose(): void {
+        this._disposed = true;
         MainPanel.currentPanel = undefined;
-        this.bridgeManager.dispose();
-        this.panel.dispose();
+        // 不移除 manager 的监听器，因为它们是共享的
+        // postToWebview 会检查 _disposed 标志
         while (this.disposables.length) {
             const d = this.disposables.pop();
             if (d) d.dispose();

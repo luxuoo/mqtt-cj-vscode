@@ -1,6 +1,7 @@
 .vscode/**
 .vscode-test/**
 src/**
+!src/serial/serialWorker.js
 node_modules/**
 .gitignore
 tsconfig.json

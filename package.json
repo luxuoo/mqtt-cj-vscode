@@ -138,7 +138,7 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run build",
-    "build": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --external:serialport --external:@serialport/* --format=cjs --platform=node --minify",
+    "build": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --external:serialport --external:@serialport/* --format=cjs --platform=node --minify && node -e \"const fs=require('fs');fs.mkdirSync('dist/serial',{recursive:true});fs.copyFileSync('src/serial/serialWorker.js','dist/serial/serialWorker.js')\"",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "dev": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --external:serialport --external:@serialport/* --format=cjs --platform=node --sourcemap --watch"

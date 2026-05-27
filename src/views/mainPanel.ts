@@ -44,6 +44,14 @@ export class MainPanel {
         this.setupMessageHandlers();
         this.setupEventListeners();
 
+        // 发送上次保存的配置
+        const lastConfig = this.profileManager.getLastConfig();
+        if (lastConfig) {
+            setTimeout(() => {
+                this.postToWebview({ type: 'config.lastConfig', config: lastConfig });
+            }, 500);
+        }
+
         this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
     }
 
@@ -97,6 +105,15 @@ export class MainPanel {
                     break;
                 case 'serial.setRts':
                     this.serialManager.setRts(msg.value);
+                    break;
+                case 'serial.setBreak':
+                    await this.serialManager.sendBreak(msg.duration || 100);
+                    break;
+                case 'serial.setAutoReconnect':
+                    this.serialManager.setAutoReconnect(msg.value);
+                    break;
+                case 'serial.getStats':
+                    this.sendSerialStats();
                     break;
                 case 'serial.clearLog':
                     this.serialLog = [];
@@ -163,6 +180,14 @@ export class MainPanel {
         // 串口事件
         this.serialManager.on('connect', () => {
             this.postToWebview({ type: 'serial.connected', port: this.serialManager.config?.port });
+            // 保存上次使用的串口配置
+            if (this.serialManager.config) {
+                this.profileManager.saveLastConfig({
+                    serial: this.serialManager.config,
+                    mqtt: this.mqttManager.config || undefined,
+                    bridge: this.bridgeManager.config || undefined
+                });
+            }
         });
 
         this.serialManager.on('disconnect', () => {
@@ -199,9 +224,29 @@ export class MainPanel {
             this.postToWebview({ type: 'serial.error', message: msg });
         });
 
+        this.serialManager.on('reconnecting', () => {
+            this.postToWebview({ type: 'serial.reconnecting' });
+        });
+
+        this.serialManager.on('reconnectFailed', () => {
+            this.postToWebview({ type: 'serial.reconnectFailed' });
+        });
+
+        this.serialManager.on('break', (duration: number) => {
+            this.postToWebview({ type: 'serial.breakSent', duration });
+        });
+
         // MQTT 事件
         this.mqttManager.on('connect', () => {
             this.postToWebview({ type: 'mqtt.connected' });
+            // 保存上次使用的MQTT配置
+            if (this.mqttManager.config) {
+                this.profileManager.saveLastConfig({
+                    serial: this.serialManager.config || undefined,
+                    mqtt: this.mqttManager.config,
+                    bridge: this.bridgeManager.config || undefined
+                });
+            }
         });
 
         this.mqttManager.on('disconnect', () => {
@@ -273,7 +318,8 @@ export class MainPanel {
         this.postToWebview({
             type: 'serial.stats',
             rxBytes: this.serialManager.rxBytes,
-            txBytes: this.serialManager.txBytes
+            txBytes: this.serialManager.txBytes,
+            errorFrames: this.serialManager.errorFrameCount
         });
     }
 

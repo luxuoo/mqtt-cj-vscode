@@ -16,13 +16,17 @@ export interface Profile {
 
 export class ProfileManager {
     private filePath: string;
+    private lastConfigPath: string;
     private profiles: Profile[] = [];
+    private lastConfig: { serial?: SerialConfig; mqtt?: MqttConfig; bridge?: BridgeConfig } | null = null;
 
     constructor(context: vscode.ExtensionContext) {
         // 存储在插件的 globalStorageUri 目录下
         const storageDir = context.globalStorageUri.fsPath;
         this.filePath = path.join(storageDir, 'profiles.json');
+        this.lastConfigPath = path.join(storageDir, 'lastConfig.json');
         this.load();
+        this.loadLastConfig();
     }
 
     private load(): void {
@@ -38,6 +42,34 @@ export class ProfileManager {
             logger.warn('读取配置方案失败，使用空列表');
             this.profiles = [];
         }
+    }
+
+    private loadLastConfig(): void {
+        try {
+            if (fs.existsSync(this.lastConfigPath)) {
+                const raw = fs.readFileSync(this.lastConfigPath, 'utf-8');
+                this.lastConfig = JSON.parse(raw);
+            }
+        } catch {
+            this.lastConfig = null;
+        }
+    }
+
+    saveLastConfig(config: { serial?: SerialConfig; mqtt?: MqttConfig; bridge?: BridgeConfig }): void {
+        try {
+            this.lastConfig = config;
+            const dir = path.dirname(this.lastConfigPath);
+            if (!fs.existsSync(dir)) {
+                fs.mkdirSync(dir, { recursive: true });
+            }
+            fs.writeFileSync(this.lastConfigPath, JSON.stringify(config, null, 2), 'utf-8');
+        } catch (err) {
+            logger.warn(`保存上次配置失败: ${(err as Error).message}`);
+        }
+    }
+
+    getLastConfig(): { serial?: SerialConfig; mqtt?: MqttConfig; bridge?: BridgeConfig } | null {
+        return this.lastConfig;
     }
 
     private save(): void {

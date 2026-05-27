@@ -78,13 +78,16 @@ export function getWebviewContent(webview: vscode.Webview, extensionUri: vscode.
         <div class="control-bar">
             <label class="checkbox-label"><input type="checkbox" id="dtrCtrl" checked> DTR</label>
             <label class="checkbox-label"><input type="checkbox" id="rtsCtrl"> RTS</label>
+            <label class="checkbox-label"><input type="checkbox" id="autoReconnect"> 自动重连</label>
+            <button id="sendBreak" class="btn-small" title="发送Break信号">Break</button>
             <div class="spacer"></div>
-            <span class="stats" id="serialStats">RX: 0 B | TX: 0 B</span>
+            <span class="stats" id="serialStats">RX: 0 B | TX: 0 B | ERR: 0</span>
         </div>
 
         <div class="section-header">
             <span>接收区</span>
             <div class="toolbar">
+                <input id="serialSearch" placeholder="搜索..." style="width:120px" />
                 <select id="serialDisplayMode">
                     <option value="ascii">ASCII</option><option value="hex">HEX</option>
                 </select>
@@ -171,7 +174,7 @@ export function getWebviewContent(webview: vscode.Webview, extensionUri: vscode.
         <div class="sub-tags" id="subTags"></div>
 
         <div class="section-header">
-            <span>消息列表</span>
+            <span>消息列表 <span class="stats" id="mqttMsgCount">(0 条)</span></span>
             <div class="toolbar">
                 <input id="mqttFilter" placeholder="过滤主题..." style="width:150px" />
                 <select id="mqttPayloadFormat">

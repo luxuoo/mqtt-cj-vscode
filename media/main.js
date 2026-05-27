@@ -85,6 +85,29 @@
         post({ type: 'serial.setRts', value: e.target.checked });
     });
 
+    // 自动重连
+    $('autoReconnect').addEventListener('change', (e) => {
+        post({ type: 'serial.setAutoReconnect', value: e.target.checked });
+    });
+
+    // Break 信号
+    $('sendBreak').addEventListener('click', () => {
+        post({ type: 'serial.setBreak', duration: 100 });
+    });
+
+    // 接收区搜索/过滤
+    $('serialSearch').addEventListener('input', (e) => {
+        const filter = e.target.value.toLowerCase();
+        const lines = serialLog.querySelectorAll('.log-line');
+        lines.forEach(line => {
+            if (!filter || line.textContent.toLowerCase().includes(filter)) {
+                line.style.display = '';
+            } else {
+                line.style.display = 'none';
+            }
+        });
+    });
+
     // 发送
     $('serialSend').addEventListener('click', () => {
         const input = $('serialInput').value;
@@ -153,6 +176,7 @@
     const mqttAutoScroll = $('mqttAutoScroll');
     const subscriptions = new Map();
     let mqttPayloadFormat = 'text';
+    let mqttMsgCount = 0;
 
     // 连接/断开
     $('mqttConnect').addEventListener('click', () => {
@@ -460,12 +484,27 @@
             }
 
             case 'serial.stats': {
-                $('serialStats').textContent = `RX: ${formatBytes(msg.rxBytes)} | TX: ${formatBytes(msg.txBytes)}`;
+                $('serialStats').textContent = `RX: ${formatBytes(msg.rxBytes)} | TX: ${formatBytes(msg.txBytes)} | ERR: ${msg.errorFrames || 0}`;
                 break;
             }
 
             case 'serial.error': {
                 appendLog(serialLog, `<span class="timestamp">[${new Date().toLocaleTimeString()}]</span> <span class="error">✗ ${escapeHtml(msg.message)}</span>`);
+                break;
+            }
+
+            case 'serial.reconnecting': {
+                appendLog(serialLog, `<span class="timestamp">[${new Date().toLocaleTimeString()}]</span> <span class="dir-rx">⟳ 正在尝试自动重连...</span>`);
+                break;
+            }
+
+            case 'serial.reconnectFailed': {
+                appendLog(serialLog, `<span class="timestamp">[${new Date().toLocaleTimeString()}]</span> <span class="error">✗ 自动重连失败</span>`);
+                break;
+            }
+
+            case 'serial.breakSent': {
+                appendLog(serialLog, `<span class="timestamp">[${new Date().toLocaleTimeString()}]</span> <span class="dir-tx">⚡ Break 信号已发送 (${msg.duration}ms)</span>`);
                 break;
             }
 
@@ -489,6 +528,8 @@
                 $('mqttStatus').className = 'status disconnected';
                 subscriptions.clear();
                 renderSubTags();
+                mqttMsgCount = 0;
+                $('mqttMsgCount').textContent = '(0 条)';
                 break;
             }
 
@@ -499,6 +540,8 @@
                 appendLog(mqttLog,
                     `<span class="msg-time">[${m.timestamp}]</span> <span class="msg-topic">${escapeHtml(m.topic)}</span> <span class="msg-qos">QoS${m.qos}</span> <span class="msg-payload ${payloadClass}">${escapeHtml(payload)}</span>`
                 );
+                mqttMsgCount++;
+                $('mqttMsgCount').textContent = `(${mqttMsgCount} 条)`;
                 const filter = $('mqttFilter').value;
                 if (filter) {
                     filterMqttMessages(filter);
@@ -523,6 +566,8 @@
 
             case 'mqtt.messagesCleared':
                 mqttLog.innerHTML = '';
+                mqttMsgCount = 0;
+                $('mqttMsgCount').textContent = '(0 条)';
                 break;
 
             case 'mqtt.error': {
@@ -576,6 +621,45 @@
             case 'profile.loaded':
                 applyProfile(msg.profile);
                 break;
+
+            // 上次使用的配置
+            case 'config.lastConfig': {
+                const cfg = msg.config;
+                if (cfg.serial) {
+                    $('baudRate').value = cfg.serial.baudRate;
+                    $('dataBits').value = cfg.serial.dataBits;
+                    $('stopBits').value = cfg.serial.stopBits;
+                    $('parity').value = cfg.serial.parity;
+                    $('dtrCtrl').checked = cfg.serial.dtr;
+                    $('rtsCtrl').checked = cfg.serial.rts;
+                    if (cfg.serial.rtscts) $('flowControl').value = 'rtscts';
+                    else if (cfg.serial.xon) $('flowControl').value = 'xonxoff';
+                    else $('flowControl').value = 'none';
+                }
+                if (cfg.mqtt) {
+                    $('mqttProtocol').value = cfg.mqtt.protocol;
+                    $('mqttBroker').value = cfg.mqtt.broker;
+                    $('mqttPort').value = cfg.mqtt.port;
+                    $('mqttClientId').value = cfg.mqtt.clientId || '';
+                    $('mqttUsername').value = cfg.mqtt.username || '';
+                    $('mqttPassword').value = cfg.mqtt.password || '';
+                    $('mqttCleanSession').checked = cfg.mqtt.cleanSession;
+                    $('mqttKeepAlive').value = cfg.mqtt.keepAlive;
+                    $('mqttReconnect').checked = cfg.mqtt.reconnect;
+                    $('willTopic').value = cfg.mqtt.willTopic || '';
+                    $('willPayload').value = cfg.mqtt.willPayload || '';
+                    $('willQos').value = cfg.mqtt.willQos;
+                    $('willRetain').checked = cfg.mqtt.willRetain;
+                }
+                if (cfg.bridge) {
+                    $('bridgeS2M').checked = cfg.bridge.serialToMqtt;
+                    $('bridgeM2S').checked = cfg.bridge.mqttToSerial;
+                    $('bridgeS2MTopic').value = cfg.bridge.serialToMqttTopic;
+                    $('bridgeM2STopic').value = cfg.bridge.mqttToSerialTopic;
+                    $('bridgeTransform').value = cfg.bridge.transform;
+                }
+                break;
+            }
         }
     });
 

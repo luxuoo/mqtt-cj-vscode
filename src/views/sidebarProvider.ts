@@ -82,6 +82,10 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         // 发送当前MQTT连接状态
         if (this.mqttManager.connected) {
             this.post({ type: 'mqtt.connected' });
+            // 同步已有的订阅列表
+            for (const sub of this.mqttManager.subscriptions) {
+                this.post({ type: 'mqtt.subscribed', subscription: sub });
+            }
         }
         // 发送当前桥接状态
         if (this.bridgeManager.active) {

@@ -97,6 +97,10 @@ export class MainPanel {
         }
         if (this.mqttManager.connected) {
             this.postToWebview({ type: 'mqtt.connected' });
+            // 同步已有的订阅列表
+            for (const sub of this.mqttManager.subscriptions) {
+                this.postToWebview({ type: 'mqtt.subscribed', subscription: sub });
+            }
         }
         if (this.bridgeManager.active) {
             this.postToWebview({ type: 'bridge.started', config: this.bridgeManager.config });

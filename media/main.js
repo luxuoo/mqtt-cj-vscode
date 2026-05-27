@@ -204,11 +204,29 @@
     const subscriptions = new Map();
     let mqttPayloadFormat = 'text';
     let mqttMsgCount = 0;
+    let mqttConnected = false;
+
+    function setMqttConnected(connected) {
+        mqttConnected = connected;
+        const btn = $('mqttConnect');
+        if (connected) {
+            btn.textContent = '断开';
+            btn.className = 'btn-danger';
+            btn.disabled = false;
+        } else {
+            btn.textContent = '连接';
+            btn.className = 'btn-primary';
+            btn.disabled = false;
+            subscriptions.clear();
+            renderSubTags();
+            mqttMsgCount = 0;
+            $('mqttMsgCount').textContent = '(0 条)';
+        }
+    }
 
     // 连接/断开
     $('mqttConnect').addEventListener('click', () => {
-        const btn = $('mqttConnect');
-        if (btn.textContent === '连接') {
+        if (!mqttConnected) {
             const willTopic = $('willTopic').value;
             post({
                 type: 'mqtt.connect',
@@ -553,22 +571,16 @@
 
             // MQTT
             case 'mqtt.connected': {
-                $('mqttConnect').textContent = '断开';
-                $('mqttConnect').className = 'btn-danger';
+                setMqttConnected(true);
                 $('mqttStatus').textContent = 'MQTT: 已连接';
                 $('mqttStatus').className = 'status connected';
                 break;
             }
 
             case 'mqtt.disconnected': {
-                $('mqttConnect').textContent = '连接';
-                $('mqttConnect').className = 'btn-primary';
+                setMqttConnected(false);
                 $('mqttStatus').textContent = 'MQTT: 未连接';
                 $('mqttStatus').className = 'status disconnected';
-                subscriptions.clear();
-                renderSubTags();
-                mqttMsgCount = 0;
-                $('mqttMsgCount').textContent = '(0 条)';
                 break;
             }
 

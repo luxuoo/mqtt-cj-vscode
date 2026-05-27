@@ -1,4 +1,6 @@
 import * as vscode from 'vscode';
+import * as fs from 'fs';
+import * as path from 'path';
 import { SerialConfig } from '../serial/serialManager';
 import { MqttConfig } from '../mqtt/mqttManager';
 import { BridgeConfig } from '../bridge/bridgeManager';
@@ -12,44 +14,88 @@ export interface Profile {
     createdAt: string;
 }
 
-const STORAGE_KEY = 'serialMqtt.profiles';
-
 export class ProfileManager {
-    private context: vscode.ExtensionContext;
+    private filePath: string;
+    private profiles: Profile[] = [];
 
     constructor(context: vscode.ExtensionContext) {
-        this.context = context;
+        // 存储在插件的 globalStorageUri 目录下
+        const storageDir = context.globalStorageUri.fsPath;
+        this.filePath = path.join(storageDir, 'profiles.json');
+        this.load();
+    }
+
+    private load(): void {
+        try {
+            if (fs.existsSync(this.filePath)) {
+                const raw = fs.readFileSync(this.filePath, 'utf-8');
+                const data = JSON.parse(raw);
+                if (Array.isArray(data)) {
+                    this.profiles = data;
+                }
+            }
+        } catch (err) {
+            logger.warn('读取配置方案失败，使用空列表');
+            this.profiles = [];
+        }
+    }
+
+    private save(): void {
+        try {
+            const dir = path.dirname(this.filePath);
+            if (!fs.existsSync(dir)) {
+                fs.mkdirSync(dir, { recursive: true });
+            }
+            fs.writeFileSync(this.filePath, JSON.stringify(this.profiles, null, 2), 'utf-8');
+        } catch (err) {
+            logger.error('保存配置方案失败', err as Error);
+        }
     }
 
     getProfiles(): Profile[] {
-        return this.context.globalState.get<Profile[]>(STORAGE_KEY, []);
+        return this.profiles;
     }
 
     getProfile(name: string): Profile | undefined {
-        return this.getProfiles().find(p => p.name === name);
+        return this.profiles.find(p => p.name === name);
     }
 
     saveProfile(profile: Profile): void {
-        const profiles = this.getProfiles();
-        const index = profiles.findIndex(p => p.name === profile.name);
+        const index = this.profiles.findIndex(p => p.name === profile.name);
         profile.createdAt = new Date().toLocaleString('zh-CN');
+
+        // 清理 undefined 值，确保 JSON 序列化正确
+        profile.serial = this.cleanObj(profile.serial) as SerialConfig;
+        profile.mqtt = this.cleanObj(profile.mqtt) as MqttConfig;
+        profile.bridge = this.cleanObj(profile.bridge) as BridgeConfig;
+
         if (index >= 0) {
-            profiles[index] = profile;
+            this.profiles[index] = profile;
         } else {
-            profiles.push(profile);
+            this.profiles.push(profile);
         }
-        this.context.globalState.update(STORAGE_KEY, profiles);
-        logger.info(`配置方案 "${profile.name}" 已保存`);
+        this.save();
+        logger.info(`配置方案 "${profile.name}" 已保存 (${this.filePath})`);
     }
 
     deleteProfile(name: string): boolean {
-        const profiles = this.getProfiles();
-        const index = profiles.findIndex(p => p.name === name);
+        const index = this.profiles.findIndex(p => p.name === name);
         if (index < 0) return false;
-        profiles.splice(index, 1);
-        this.context.globalState.update(STORAGE_KEY, profiles);
+        this.profiles.splice(index, 1);
+        this.save();
         logger.info(`配置方案 "${name}" 已删除`);
         return true;
+    }
+
+    private cleanObj(obj: any): any {
+        if (!obj || typeof obj !== 'object') return obj;
+        const result: any = {};
+        for (const key of Object.keys(obj)) {
+            if (obj[key] !== undefined) {
+                result[key] = obj[key];
+            }
+        }
+        return result;
     }
 
     getDefaultSerialConfig(): SerialConfig {

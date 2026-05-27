@@ -20,12 +20,13 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         private readonly extensionUri: vscode.Uri,
         serialManager: SerialManager,
         mqttManager: MqttManager,
-        profileManager: ProfileManager
+        profileManager: ProfileManager,
+        bridgeManager: BridgeManager
     ) {
         this.serialManager = serialManager;
         this.mqttManager = mqttManager;
         this.profileManager = profileManager;
-        this.bridgeManager = new BridgeManager(serialManager, mqttManager);
+        this.bridgeManager = bridgeManager;
 
         this.setupEventListeners();
     }
@@ -57,8 +58,39 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             bridge: this.profileManager.getDefaultBridgeConfig()
         });
 
+        // 延迟发送当前状态，确保webview已加载完成
+        setTimeout(() => this.sendCurrentState(), 200);
+
         webviewView.onDidDispose(() => {
             this.view = undefined;
+        });
+
+        // 当webview变为可见时，刷新状态
+        webviewView.onDidChangeVisibility(() => {
+            if (webviewView.visible) {
+                this.sendCurrentState();
+            }
+        });
+    }
+
+    private sendCurrentState(): void {
+        // 发送当前串口连接状态
+        if (this.serialManager.connected) {
+            this.post({ type: 'serial.connected', port: this.serialManager.config?.port });
+        }
+        // 发送当前MQTT连接状态
+        if (this.mqttManager.connected) {
+            this.post({ type: 'mqtt.connected' });
+        }
+        // 发送当前桥接状态
+        if (this.bridgeManager.active) {
+            this.post({ type: 'bridge.started', config: this.bridgeManager.config });
+        }
+        // 发送统计数据
+        this.post({
+            type: 'serial.stats',
+            rxBytes: this.serialManager.rxBytes,
+            txBytes: this.serialManager.txBytes
         });
     }
 
@@ -117,6 +149,10 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
     private async handleMessage(msg: any): Promise<void> {
         switch (msg.type) {
+            case 'getState':
+                this.sendCurrentState();
+                break;
+
             case 'serial.listPorts': {
                 const ports = await this.serialManager.listPorts();
                 this.post({ type: 'serial.ports', ports });
@@ -452,6 +488,6 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     }
 
     dispose(): void {
-        this.bridgeManager.dispose();
+        // BridgeManager 由 extension.ts 统一管理，这里不 dispose
     }
 }

@@ -27,14 +27,15 @@ export class MainPanel {
         extensionUri: vscode.Uri,
         serialManager: SerialManager,
         mqttManager: MqttManager,
-        profileManager: ProfileManager
+        profileManager: ProfileManager,
+        bridgeManager: BridgeManager
     ) {
         this.panel = panel;
         this.extensionUri = extensionUri;
         this.serialManager = serialManager;
         this.mqttManager = mqttManager;
         this.profileManager = profileManager;
-        this.bridgeManager = new BridgeManager(serialManager, mqttManager);
+        this.bridgeManager = bridgeManager;
         this.mqttStore = new MqttStore(
             vscode.workspace.getConfiguration('serialMqtt').get<number>('maxMessageHistory', 1000)
         );
@@ -44,13 +45,14 @@ export class MainPanel {
         this.setupMessageHandlers();
         this.setupEventListeners();
 
-        // 发送上次保存的配置
-        const lastConfig = this.profileManager.getLastConfig();
-        if (lastConfig) {
-            setTimeout(() => {
+        // 发送上次保存的配置和当前状态
+        setTimeout(() => {
+            const lastConfig = this.profileManager.getLastConfig();
+            if (lastConfig) {
                 this.postToWebview({ type: 'config.lastConfig', config: lastConfig });
-            }, 500);
-        }
+            }
+            this.sendCurrentState();
+        }, 300);
 
         this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
     }
@@ -59,12 +61,15 @@ export class MainPanel {
         extensionUri: vscode.Uri,
         serialManager: SerialManager,
         mqttManager: MqttManager,
-        profileManager: ProfileManager
+        profileManager: ProfileManager,
+        bridgeManager: BridgeManager
     ): void {
         const column = vscode.ViewColumn.One;
 
         if (MainPanel.currentPanel) {
             MainPanel.currentPanel.panel.reveal(column);
+            // 激活时发送当前状态
+            setTimeout(() => MainPanel.currentPanel?.sendCurrentState(), 100);
             return;
         }
 
@@ -81,12 +86,29 @@ export class MainPanel {
             }
         );
 
-        MainPanel.currentPanel = new MainPanel(panel, extensionUri, serialManager, mqttManager, profileManager);
+        MainPanel.currentPanel = new MainPanel(panel, extensionUri, serialManager, mqttManager, profileManager, bridgeManager);
+    }
+
+    private sendCurrentState(): void {
+        if (this.serialManager.connected) {
+            this.postToWebview({ type: 'serial.connected', port: this.serialManager.config?.port });
+        }
+        if (this.mqttManager.connected) {
+            this.postToWebview({ type: 'mqtt.connected' });
+        }
+        if (this.bridgeManager.active) {
+            this.postToWebview({ type: 'bridge.started', config: this.bridgeManager.config });
+        }
+        this.sendSerialStats();
     }
 
     private setupMessageHandlers(): void {
         this.panel.webview.onDidReceiveMessage(async (msg) => {
             switch (msg.type) {
+                case 'getState':
+                    this.sendCurrentState();
+                    break;
+
                 // 串口相关
                 case 'serial.listPorts':
                     await this.handleListPorts();

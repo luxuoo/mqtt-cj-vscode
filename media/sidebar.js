@@ -378,4 +378,6 @@
     // ===== 初始化 =====
     post({ type: 'serial.listPorts' });
     post({ type: 'profile.list' });
+    // 请求当前状态（同步主面板等其他视图的状态）
+    setTimeout(() => post({ type: 'getState' }), 100);
 })();

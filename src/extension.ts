@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { SerialManager } from './serial/serialManager';
 import { MqttManager } from './mqtt/mqttManager';
 import { ProfileManager } from './config/profileManager';
+import { BridgeManager } from './bridge/bridgeManager';
 import { MainPanel } from './views/mainPanel';
 import { SidebarProvider } from './views/sidebarProvider';
 import { logger } from './utils/logger';
@@ -9,6 +10,7 @@ import { logger } from './utils/logger';
 let serialManager: SerialManager;
 let mqttManager: MqttManager;
 let profileManager: ProfileManager;
+let bridgeManager: BridgeManager;
 let statusBarItem: vscode.StatusBarItem;
 let sidebarProvider: SidebarProvider;
 
@@ -19,13 +21,15 @@ export function activate(context: vscode.ExtensionContext) {
         serialManager = new SerialManager();
         mqttManager = new MqttManager();
         profileManager = new ProfileManager(context);
+        bridgeManager = new BridgeManager(serialManager, mqttManager);
 
         // 侧栏 WebviewView
         sidebarProvider = new SidebarProvider(
             context.extensionUri,
             serialManager,
             mqttManager,
-            profileManager
+            profileManager,
+            bridgeManager
         );
         context.subscriptions.push(
             vscode.window.registerWebviewViewProvider(SidebarProvider.viewType, sidebarProvider, {
@@ -55,7 +59,7 @@ export function activate(context: vscode.ExtensionContext) {
         // 命令
         context.subscriptions.push(
             vscode.commands.registerCommand('serialMqtt.openPanel', () => {
-                MainPanel.createOrShow(context.extensionUri, serialManager, mqttManager, profileManager);
+                MainPanel.createOrShow(context.extensionUri, serialManager, mqttManager, profileManager, bridgeManager);
             })
         );
 

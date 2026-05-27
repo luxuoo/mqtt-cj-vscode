@@ -176,6 +176,16 @@ select { cursor: pointer; }
 
 .tag .rm:hover { opacity: 1; }
 
+.tag.clicked {
+    animation: tag-flash 0.6s ease;
+}
+
+@keyframes tag-flash {
+    0% { background: var(--vscode-badge-background); }
+    30% { background: #51cf66; box-shadow: 0 0 6px #51cf66; }
+    100% { background: var(--vscode-badge-background); }
+}
+
 /* ===== 统计 ===== */
 .stats {
     font-size: 10px;
@@ -240,6 +250,8 @@ select { cursor: pointer; }
 }
 
 .cmd-item:hover { background: var(--vscode-list-hoverBackground); }
+.cmd-item.mqtt-cmd { background: #569CD620; }
+.cmd-item.mqtt-cmd .cmd-text { color: #569CD6; }
 .cmd-item .cmd-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .cmd-item .cmd-rm {

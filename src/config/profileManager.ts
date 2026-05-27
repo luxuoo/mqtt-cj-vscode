@@ -14,19 +14,32 @@ export interface Profile {
     createdAt: string;
 }
 
+export interface QuickCommand {
+    label: string;
+    data: string;
+    target: 'serial' | 'mqtt';
+    topic?: string; // mqtt 发布主题
+    qos?: number;
+    retain?: boolean;
+}
+
 export class ProfileManager {
     private filePath: string;
     private lastConfigPath: string;
+    private quickCommandsPath: string;
     private profiles: Profile[] = [];
     private lastConfig: { serial?: SerialConfig; mqtt?: MqttConfig; bridge?: BridgeConfig } | null = null;
+    private quickCommands: QuickCommand[] = [];
+    private savedSubTopics: string[] = [];
 
     constructor(context: vscode.ExtensionContext) {
-        // 存储在插件的 globalStorageUri 目录下
         const storageDir = context.globalStorageUri.fsPath;
         this.filePath = path.join(storageDir, 'profiles.json');
         this.lastConfigPath = path.join(storageDir, 'lastConfig.json');
+        this.quickCommandsPath = path.join(storageDir, 'quickCommands.json');
         this.load();
         this.loadLastConfig();
+        this.loadQuickCommands();
     }
 
     private load(): void {
@@ -70,6 +83,80 @@ export class ProfileManager {
 
     getLastConfig(): { serial?: SerialConfig; mqtt?: MqttConfig; bridge?: BridgeConfig } | null {
         return this.lastConfig;
+    }
+
+    private loadQuickCommands(): void {
+        try {
+            if (fs.existsSync(this.quickCommandsPath)) {
+                const raw = fs.readFileSync(this.quickCommandsPath, 'utf-8');
+                const data = JSON.parse(raw);
+                if (data.commands && Array.isArray(data.commands)) {
+                    this.quickCommands = data.commands;
+                }
+                if (data.subTopics && Array.isArray(data.subTopics)) {
+                    this.savedSubTopics = data.subTopics;
+                }
+            }
+        } catch {
+            this.quickCommands = [];
+            this.savedSubTopics = [];
+        }
+    }
+
+    private saveQuickCommands(): void {
+        try {
+            const dir = path.dirname(this.quickCommandsPath);
+            if (!fs.existsSync(dir)) {
+                fs.mkdirSync(dir, { recursive: true });
+            }
+            fs.writeFileSync(this.quickCommandsPath, JSON.stringify({
+                commands: this.quickCommands,
+                subTopics: this.savedSubTopics
+            }, null, 2), 'utf-8');
+        } catch (err) {
+            logger.warn(`保存快捷指令失败: ${(err as Error).message}`);
+        }
+    }
+
+    getQuickCommands(): QuickCommand[] {
+        return this.quickCommands;
+    }
+
+    addQuickCommand(cmd: QuickCommand): void {
+        // 去重
+        const exists = this.quickCommands.some(c =>
+            c.label === cmd.label && c.target === cmd.target
+        );
+        if (!exists) {
+            this.quickCommands.push(cmd);
+            this.saveQuickCommands();
+        }
+    }
+
+    removeQuickCommand(index: number): boolean {
+        if (index < 0 || index >= this.quickCommands.length) return false;
+        this.quickCommands.splice(index, 1);
+        this.saveQuickCommands();
+        return true;
+    }
+
+    getSavedSubTopics(): string[] {
+        return this.savedSubTopics;
+    }
+
+    addSavedSubTopic(topic: string): void {
+        if (topic && !this.savedSubTopics.includes(topic)) {
+            this.savedSubTopics.push(topic);
+            this.saveQuickCommands();
+        }
+    }
+
+    removeSavedSubTopic(topic: string): boolean {
+        const index = this.savedSubTopics.indexOf(topic);
+        if (index < 0) return false;
+        this.savedSubTopics.splice(index, 1);
+        this.saveQuickCommands();
+        return true;
     }
 
     private save(): void {

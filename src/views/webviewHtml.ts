@@ -171,6 +171,7 @@ export function getWebviewContent(webview: vscode.Webview, extensionUri: vscode.
             <select id="subQos"><option value="0">0</option><option value="1">1</option><option value="2">2</option></select>
             <button id="mqttSubscribe" class="btn-primary">订阅</button>
         </div>
+        <div class="saved-topics" id="savedSubTopics"></div>
         <div class="sub-tags" id="subTags"></div>
 
         <div class="section-header">
@@ -197,6 +198,12 @@ export function getWebviewContent(webview: vscode.Webview, extensionUri: vscode.
         <div class="send-area">
             <textarea id="pubPayload" placeholder="Payload... Ctrl+Enter发布" rows="3"></textarea>
             <button id="mqttPublish" class="btn-primary">发布</button>
+            <button id="addMqttQuickCmd" class="btn-small" title="保存为快捷指令">+快捷</button>
+        </div>
+
+        <div class="quick-commands">
+            <span class="label">MQTT快捷指令:</span>
+            <div id="mqttQuickCmdList"></div>
         </div>
     </div>
 

@@ -3,6 +3,7 @@ import { SerialManager, PortInfo } from '../serial/serialManager';
 import { MqttManager, MqttMessage, Subscription } from '../mqtt/mqttManager';
 import { ProfileManager, Profile } from '../config/profileManager';
 import { BridgeManager, BridgeConfig } from '../bridge/bridgeManager';
+import { MqttStore } from '../mqtt/mqttStore';
 import { formatDataLine, timestamp, bufferToHex, generateClientId } from '../utils/formatter';
 import { logger } from '../utils/logger';
 import { prepareSendData } from '../serial/serialParser';
@@ -14,6 +15,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     private mqttManager: MqttManager;
     private profileManager: ProfileManager;
     private bridgeManager: BridgeManager;
+    private mqttStore: MqttStore;
     private serialLog: string[] = [];
     private _disposed: boolean = false;
 
@@ -28,6 +30,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         this.mqttManager = mqttManager;
         this.profileManager = profileManager;
         this.bridgeManager = bridgeManager;
+        this.mqttStore = new MqttStore(1000);
 
         this.setupEventListeners();
     }
@@ -97,6 +100,9 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             rxBytes: this.serialManager.rxBytes,
             txBytes: this.serialManager.txBytes
         });
+        // 同步快捷指令和订阅主题
+        this.post({ type: 'quickcmd.list', commands: this.profileManager.getQuickCommands() });
+        this.post({ type: 'subtopics.list', topics: this.profileManager.getSavedSubTopics() });
     }
 
     private setupEventListeners(): void {
@@ -129,6 +135,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             this.post({ type: 'mqtt.disconnected' });
         });
         this.mqttManager.on('message', (msg: MqttMessage) => {
+            this.mqttStore.addMessage(msg);
             this.post({ type: 'mqtt.message', message: msg });
         });
         this.mqttManager.on('subscribe', (sub: Subscription) => {
@@ -224,8 +231,20 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 this.mqttManager.publish(msg.topic, msg.payload, msg.qos, msg.retain);
                 break;
             case 'mqtt.clearMessages':
+                this.mqttStore.clear();
                 this.post({ type: 'mqtt.messagesCleared' });
                 break;
+            case 'mqtt.exportMessages': {
+                const uri = await vscode.window.showSaveDialog({
+                    filters: { '日志': ['txt', 'log'] },
+                    defaultUri: vscode.Uri.file('mqtt_log.txt')
+                });
+                if (uri) {
+                    const content = this.mqttStore.exportAsText();
+                    await vscode.workspace.fs.writeFile(uri, Buffer.from(content, 'utf-8'));
+                }
+                break;
+            }
 
             case 'bridge.start': {
                 const ok = this.bridgeManager.start(msg.config);
@@ -266,6 +285,32 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
             case 'openMainPanel':
                 vscode.commands.executeCommand('serialMqtt.openPanel');
+                break;
+
+            // 快捷指令
+            case 'quickcmd.list':
+                this.post({ type: 'quickcmd.list', commands: this.profileManager.getQuickCommands() });
+                break;
+            case 'quickcmd.add':
+                this.profileManager.addQuickCommand(msg.command);
+                this.post({ type: 'quickcmd.list', commands: this.profileManager.getQuickCommands() });
+                break;
+            case 'quickcmd.remove':
+                this.profileManager.removeQuickCommand(msg.index);
+                this.post({ type: 'quickcmd.list', commands: this.profileManager.getQuickCommands() });
+                break;
+
+            // 订阅主题存储
+            case 'subtopics.list':
+                this.post({ type: 'subtopics.list', topics: this.profileManager.getSavedSubTopics() });
+                break;
+            case 'subtopics.add':
+                this.profileManager.addSavedSubTopic(msg.topic);
+                this.post({ type: 'subtopics.list', topics: this.profileManager.getSavedSubTopics() });
+                break;
+            case 'subtopics.remove':
+                this.profileManager.removeSavedSubTopic(msg.topic);
+                this.post({ type: 'subtopics.list', topics: this.profileManager.getSavedSubTopics() });
                 break;
         }
     }
@@ -426,6 +471,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             </div>
             <button id="mqttSub" class="btn full">订阅</button>
             <div id="subTags" class="tags"></div>
+            <div id="savedSubTopics" class="tags" style="margin-top:4px"></div>
 
             <!-- 发布 -->
             <div class="sub-title">发布</div>

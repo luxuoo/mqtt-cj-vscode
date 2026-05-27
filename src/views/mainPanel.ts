@@ -106,6 +106,9 @@ export class MainPanel {
             this.postToWebview({ type: 'bridge.started', config: this.bridgeManager.config });
         }
         this.sendSerialStats();
+        // 同步快捷指令和订阅主题
+        this.postToWebview({ type: 'quickcmd.list', commands: this.profileManager.getQuickCommands() });
+        this.postToWebview({ type: 'subtopics.list', topics: this.profileManager.getSavedSubTopics() });
     }
 
     private setupMessageHandlers(): void {
@@ -199,6 +202,32 @@ export class MainPanel {
                     break;
                 case 'profile.list':
                     this.sendProfileList();
+                    break;
+
+                // 快捷指令
+                case 'quickcmd.list':
+                    this.postToWebview({ type: 'quickcmd.list', commands: this.profileManager.getQuickCommands() });
+                    break;
+                case 'quickcmd.add':
+                    this.profileManager.addQuickCommand(msg.command);
+                    this.postToWebview({ type: 'quickcmd.list', commands: this.profileManager.getQuickCommands() });
+                    break;
+                case 'quickcmd.remove':
+                    this.profileManager.removeQuickCommand(msg.index);
+                    this.postToWebview({ type: 'quickcmd.list', commands: this.profileManager.getQuickCommands() });
+                    break;
+
+                // 订阅主题存储
+                case 'subtopics.list':
+                    this.postToWebview({ type: 'subtopics.list', topics: this.profileManager.getSavedSubTopics() });
+                    break;
+                case 'subtopics.add':
+                    this.profileManager.addSavedSubTopic(msg.topic);
+                    this.postToWebview({ type: 'subtopics.list', topics: this.profileManager.getSavedSubTopics() });
+                    break;
+                case 'subtopics.remove':
+                    this.profileManager.removeSavedSubTopic(msg.topic);
+                    this.postToWebview({ type: 'subtopics.list', topics: this.profileManager.getSavedSubTopics() });
                     break;
             }
         }, null, this.disposables);

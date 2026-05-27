@@ -160,14 +160,14 @@
         post({ type: 'serial.exportLog' });
     });
 
-    // 快捷指令
-    let quickCommands = [];
+    // 快捷指令（持久化）
+    let quickCommands = []; // {label, data, target, topic?, qos?, retain?}
+
     $('addQuickCmd').addEventListener('click', () => {
         const input = $('quickCmdInput');
         const cmd = input.value.trim();
-        if (cmd && !quickCommands.includes(cmd)) {
-            quickCommands.push(cmd);
-            renderQuickCommands();
+        if (cmd) {
+            post({ type: 'quickcmd.add', command: { label: cmd, data: cmd, target: 'serial' } });
             input.value = '';
         }
     });
@@ -178,23 +178,52 @@
         }
     });
 
+    // MQTT 快捷发布
+    $('addMqttQuickCmd').addEventListener('click', () => {
+        const topic = $('pubTopic').value.trim();
+        const payload = $('pubPayload').value.trim();
+        if (!topic) return;
+        const label = topic + (payload ? ': ' + payload.substring(0, 20) : '');
+        post({
+            type: 'quickcmd.add',
+            command: {
+                label: label,
+                data: payload,
+                target: 'mqtt',
+                topic: topic,
+                qos: parseInt($('pubQos').value),
+                retain: $('pubRetain').checked
+            }
+        });
+    });
+
     function renderQuickCommands() {
-        const list = $('quickCmdList');
-        list.innerHTML = '';
+        const serialList = $('quickCmdList');
+        const mqttList = $('mqttQuickCmdList');
+        if (serialList) serialList.innerHTML = '';
+        if (mqttList) mqttList.innerHTML = '';
         quickCommands.forEach((cmd, i) => {
             const btn = document.createElement('button');
-            btn.className = 'quick-cmd';
-            btn.innerHTML = escapeHtml(cmd) + '<span class="remove">×</span>';
+            btn.className = 'quick-cmd' + (cmd.target === 'mqtt' ? ' mqtt-cmd' : '');
+            btn.innerHTML = escapeHtml(cmd.label) + '<span class="remove">×</span>';
             btn.querySelector('.remove').addEventListener('click', (e) => {
                 e.stopPropagation();
-                quickCommands.splice(i, 1);
-                renderQuickCommands();
+                post({ type: 'quickcmd.remove', index: i });
             });
             btn.addEventListener('click', () => {
-                $('serialInput').value = cmd;
-                $('serialSend').click();
+                if (cmd.target === 'mqtt') {
+                    if (!mqttConnected) return;
+                    post({ type: 'mqtt.publish', topic: cmd.topic, payload: cmd.data, qos: cmd.qos || 0, retain: cmd.retain || false });
+                } else {
+                    $('serialInput').value = cmd.data;
+                    $('serialSend').click();
+                }
             });
-            list.appendChild(btn);
+            if (cmd.target === 'mqtt' && mqttList) {
+                mqttList.appendChild(btn);
+            } else if (cmd.target !== 'mqtt' && serialList) {
+                serialList.appendChild(btn);
+            }
         });
     }
 
@@ -223,6 +252,19 @@
             $('mqttMsgCount').textContent = '(0 条)';
         }
     }
+
+    // 协议切换自动更新端口
+    const mqttProtocol = $('mqttProtocol');
+    const mqttPort = $('mqttPort');
+    const defaultPorts = { mqtt: 1883, mqtts: 8883, ws: 8083, wss: 8084 };
+    if (mqttProtocol) mqttProtocol.addEventListener('change', () => {
+        if (!mqttPort) return;
+        const curPort = parseInt(mqttPort.value);
+        const isDefault = Object.values(defaultPorts).includes(curPort);
+        if (isDefault || !mqttPort.value) {
+            mqttPort.value = defaultPorts[mqttProtocol.value] || 1883;
+        }
+    });
 
     // 连接/断开
     $('mqttConnect').addEventListener('click', () => {
@@ -258,12 +300,40 @@
         if (!topic) return;
         const qos = parseInt($('subQos').value);
         post({ type: 'mqtt.subscribe', topic, qos });
+        // 自动保存订阅主题
+        post({ type: 'subtopics.add', topic: topic });
         $('subTopic').value = '';
     });
 
     $('subTopic').addEventListener('keydown', (e) => {
         if (e.key === 'Enter') $('mqttSubscribe').click();
     });
+
+    // 保存的订阅主题
+    let savedSubTopics = [];
+
+    function renderSavedSubTopics() {
+        const list = $('savedSubTopics');
+        if (!list) return;
+        list.innerHTML = '';
+        savedSubTopics.forEach((topic) => {
+            const tag = document.createElement('span');
+            tag.className = 'saved-topic-tag';
+            tag.innerHTML = escapeHtml(topic) + ' <span class="remove">×</span>';
+            tag.querySelector('.remove').addEventListener('click', (e) => {
+                e.stopPropagation();
+                post({ type: 'subtopics.remove', topic: topic });
+            });
+            tag.addEventListener('click', () => {
+                if (!mqttConnected) return;
+                $('subTopic').value = topic;
+                $('mqttSubscribe').click();
+                tag.classList.add('clicked');
+                setTimeout(() => tag.classList.remove('clicked'), 600);
+            });
+            list.appendChild(tag);
+        });
+    }
 
     // 发布
     $('mqttPublish').addEventListener('click', () => {
@@ -673,6 +743,18 @@
                 applyProfile(msg.profile);
                 break;
 
+            // 快捷指令
+            case 'quickcmd.list':
+                quickCommands = msg.commands || [];
+                renderQuickCommands();
+                break;
+
+            // 订阅主题
+            case 'subtopics.list':
+                savedSubTopics = msg.topics || [];
+                renderSavedSubTopics();
+                break;
+
             // 上次使用的配置
             case 'config.lastConfig': {
                 const cfg = msg.config;
@@ -723,6 +805,8 @@
     // ===== 初始化 =====
     post({ type: 'serial.listPorts' });
     post({ type: 'profile.list' });
+    post({ type: 'quickcmd.list' });
+    post({ type: 'subtopics.list' });
     // 请求当前状态（同步侧边栏等其他视图的状态）
     setTimeout(() => post({ type: 'getState' }), 100);
 })();

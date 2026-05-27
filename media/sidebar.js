@@ -95,9 +95,37 @@
     // ===== MQTT =====
     var mqttConnect = $('mqttConnect'), mqttDot = $('mqttDot');
     var subTopic = $('subTopic'), pubTopic = $('pubTopic'), pubPayload = $('pubPayload');
+    var mqttConnected = false;
+
+    // 协议切换自动更新端口
+    var mProtocol = $('mProtocol'), mPort = $('mPort');
+    var defaultPorts = { mqtt: 1883, mqtts: 8883, ws: 8083, wss: 8084 };
+    if (mProtocol) mProtocol.addEventListener('change', function() {
+        if (!mPort) return;
+        var curPort = parseInt(mPort.value);
+        var proto = mProtocol.value;
+        var isDefault = Object.values(defaultPorts).indexOf(curPort) >= 0;
+        if (isDefault || !mPort.value) {
+            mPort.value = defaultPorts[proto] || 1883;
+        }
+    });
+
+    function setMqttConnected(connected) {
+        mqttConnected = connected;
+        if (!mqttConnect) return;
+        if (connected) {
+            mqttConnect.textContent = '断开';
+            mqttConnect.className = 'btn danger full';
+            mqttConnect.disabled = false;
+        } else {
+            mqttConnect.textContent = '连接';
+            mqttConnect.className = 'btn primary full';
+            mqttConnect.disabled = false;
+        }
+    }
 
     if (mqttConnect) mqttConnect.addEventListener('click', function() {
-        if (mqttConnect.textContent === '连接') {
+        if (!mqttConnected) {
             post({
                 type: 'mqtt.connect',
                 config: {
@@ -115,14 +143,17 @@
     });
 
     if ($('mqttSub')) $('mqttSub').addEventListener('click', function() {
+        if (!mqttConnected) return;
         var topic = val('subTopic').trim();
         if (!topic) return;
         post({ type: 'mqtt.subscribe', topic: topic, qos: num('subQos') });
+        post({ type: 'subtopics.add', topic: topic });
         if (subTopic) subTopic.value = '';
     });
     if (subTopic) subTopic.addEventListener('keydown', function(e) { if (e.key === 'Enter' && $('mqttSub')) $('mqttSub').click(); });
 
     if ($('mqttPub')) $('mqttPub').addEventListener('click', function() {
+        if (!mqttConnected) return;
         var topic = val('pubTopic').trim();
         if (!topic) return;
         post({ type: 'mqtt.publish', topic: topic, payload: val('pubPayload'), qos: num('pubQos'), retain: checked('pubRetain') });
@@ -140,6 +171,31 @@
             tag.innerHTML = esc(topic) + ' Q' + qos + ' <span class="rm">×</span>';
             tag.querySelector('.rm').addEventListener('click', function() { post({ type: 'mqtt.unsubscribe', topic: topic }); });
             c.appendChild(tag);
+        });
+    }
+
+    var savedSubTopics = [];
+    function renderSavedSubTopics() {
+        var list = $('savedSubTopics');
+        if (!list) return;
+        list.innerHTML = '';
+        savedSubTopics.forEach(function(topic) {
+            var tag = document.createElement('span');
+            tag.className = 'tag';
+            tag.style.cursor = 'pointer';
+            tag.innerHTML = esc(topic) + ' <span class="rm">×</span>';
+            tag.querySelector('.rm').addEventListener('click', function(e) {
+                e.stopPropagation();
+                post({ type: 'subtopics.remove', topic: topic });
+            });
+            tag.addEventListener('click', function() {
+                if (!mqttConnected) return;
+                if (subTopic) subTopic.value = topic;
+                if ($('mqttSub')) $('mqttSub').click();
+                tag.classList.add('clicked');
+                setTimeout(function() { tag.classList.remove('clicked'); }, 600);
+            });
+            list.appendChild(tag);
         });
     }
 
@@ -230,11 +286,14 @@
         });
     }
 
-    // ===== 快捷指令 =====
-    var quickCmds = [];
+    // ===== 快捷指令（持久化） =====
+    var quickCmds = []; // {label, data, target, topic?, qos?, retain?}
     if ($('addQuickCmd')) $('addQuickCmd').addEventListener('click', function() {
         var v = val('quickCmdInput').trim();
-        if (v && quickCmds.indexOf(v) === -1) { quickCmds.push(v); renderQuickCmds(); if ($('quickCmdInput')) $('quickCmdInput').value = ''; }
+        if (v) {
+            post({ type: 'quickcmd.add', command: { label: v, data: v, target: 'serial' } });
+            if ($('quickCmdInput')) $('quickCmdInput').value = '';
+        }
     });
     if ($('quickCmdInput')) $('quickCmdInput').addEventListener('keydown', function(e) { if (e.key === 'Enter' && $('addQuickCmd')) $('addQuickCmd').click(); });
 
@@ -244,15 +303,23 @@
         list.innerHTML = '';
         quickCmds.forEach(function(cmd, i) {
             var div = document.createElement('div');
-            div.className = 'cmd-item';
+            div.className = 'cmd-item' + (cmd.target === 'mqtt' ? ' mqtt-cmd' : '');
             var textSpan = document.createElement('span');
             textSpan.className = 'cmd-text';
-            textSpan.textContent = cmd;
-            textSpan.addEventListener('click', function() { if ($('sInput')) $('sInput').value = cmd; if ($('serialSend')) $('serialSend').click(); });
+            var prefix = cmd.target === 'mqtt' ? '[MQTT] ' : '';
+            textSpan.textContent = prefix + cmd.label;
+            textSpan.addEventListener('click', function() {
+                if (cmd.target === 'mqtt') {
+                    post({ type: 'mqtt.publish', topic: cmd.topic, payload: cmd.data, qos: cmd.qos || 0, retain: cmd.retain || false });
+                } else {
+                    if ($('sInput')) $('sInput').value = cmd.data;
+                    if ($('serialSend')) $('serialSend').click();
+                }
+            });
             var rmBtn = document.createElement('button');
             rmBtn.className = 'cmd-rm';
             rmBtn.textContent = '×';
-            rmBtn.addEventListener('click', function(e) { e.stopPropagation(); quickCmds.splice(i, 1); renderQuickCmds(); });
+            rmBtn.addEventListener('click', function(e) { e.stopPropagation(); post({ type: 'quickcmd.remove', index: i }); });
             div.appendChild(textSpan);
             div.appendChild(rmBtn);
             list.appendChild(div);
@@ -300,11 +367,11 @@
                     break;
 
                 case 'mqtt.connected':
-                    if (mqttConnect) { mqttConnect.textContent = '断开'; mqttConnect.classList.replace('primary', 'danger'); }
+                    setMqttConnected(true);
                     if (mqttDot) mqttDot.classList.add('connected');
                     break;
                 case 'mqtt.disconnected':
-                    if (mqttConnect) { mqttConnect.textContent = '连接'; mqttConnect.classList.replace('danger', 'primary'); }
+                    setMqttConnected(false);
                     if (mqttDot) mqttDot.classList.remove('connected');
                     subs.clear(); renderSubTags();
                     break;
@@ -377,6 +444,16 @@
                     }
                     break;
                 }
+                case 'quickcmd.list':
+                    quickCmds = msg.commands || [];
+                    renderQuickCmds();
+                    break;
+
+                case 'subtopics.list':
+                    savedSubTopics = msg.topics || [];
+                    renderSavedSubTopics();
+                    break;
+
                 case 'defaults': {
                     if (msg.serial) {
                         if ($('sBaud')) $('sBaud').value = msg.serial.baudRate;
@@ -409,6 +486,8 @@
     // ===== 初始化 =====
     post({ type: 'serial.listPorts' });
     post({ type: 'profile.list' });
+    post({ type: 'quickcmd.list' });
+    post({ type: 'subtopics.list' });
     // 请求当前状态（同步主面板等其他视图的状态）
     setTimeout(() => post({ type: 'getState' }), 100);
 })();

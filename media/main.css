@@ -362,6 +362,15 @@ body {
     opacity: 0.8;
 }
 
+.quick-cmd.mqtt-cmd {
+    background: #569CD6;
+    color: #fff;
+}
+
+.quick-cmd.mqtt-cmd:hover {
+    background: #4A8AC4;
+}
+
 .quick-cmd .remove {
     margin-left: 4px;
     opacity: 0.6;
@@ -389,6 +398,51 @@ body {
     border-radius: 3px;
     cursor: pointer;
     font-size: 14px;
+}
+
+/* ===== 保存的订阅主题 ===== */
+.saved-topics {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+    min-height: 20px;
+}
+
+.saved-topic-tag {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    background: #2D7D46;
+    color: #fff;
+    padding: 1px 6px;
+    border-radius: 8px;
+    font-size: 10px;
+    cursor: pointer;
+}
+
+.saved-topic-tag:hover {
+    background: #248B3A;
+}
+
+.saved-topic-tag .remove {
+    cursor: pointer;
+    opacity: 0.6;
+    margin-left: 2px;
+}
+
+.saved-topic-tag .remove:hover {
+    opacity: 1;
+}
+
+.saved-topic-tag.clicked {
+    animation: tag-flash 0.6s ease;
+}
+
+@keyframes tag-flash {
+    0% { background: #2D7D46; }
+    30% { background: #51cf66; box-shadow: 0 0 6px #51cf66; }
+    100% { background: #2D7D46; }
 }
 
 /* ===== MQTT 订阅标签 ===== */

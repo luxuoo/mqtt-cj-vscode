@@ -50,7 +50,7 @@
 
 ```bash
 # 克隆仓库
-git clone http://123.207.45.73:1080/fumeng/mqtt-cj-vscode.git
+git clone https://github.com/luxuoo/mqtt-cj-vscode.git
 cd mqtt-cj-vscode
 
 # 安装依赖
